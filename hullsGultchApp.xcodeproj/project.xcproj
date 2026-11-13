@@ -11,7 +11,24 @@
     ],
   },
   "files": [
-    { "kind": "folder", "path": "hullsGultchApp", "target-membership": [ "hullsGultchApp" ] },
+    {
+      "kind": "folder",
+      "path": "hullsGultchApp",
+      "target-membership": [
+        "hullsGultchApp",
+      ],
+      "membership-exceptions": [
+        {
+          "target": "hullsGultchApp",
+          "exclusions": [
+            "Info.plist",
+          ],
+        },
+      ],
+    },
+    { "path": "PointCloudBuilder.swift", "target-membership": [ "hullsGultchApp/compile-sources" ] },
+    { "path": "ARPointCloudView.swift", "target-membership": [ "hullsGultchApp/compile-sources" ] },
+    { "path": "ARSessionState.swift", "target-membership": [ "hullsGultchApp/compile-sources" ] },
     {
       "kind": "group",
       "name": "Products",
@@ -34,11 +51,14 @@
       "build-settings": {
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
-        "DEVELOPMENT_TEAM": "6LUTVDHS2Y",
+        "DEVELOPMENT_TEAM": "42KN75XL77",
         "ENABLE_APP_SANDBOX": "YES",
         "ENABLE_PREVIEWS": "YES",
         "ENABLE_USER_SELECTED_FILES": "readonly",
         "GENERATE_INFOPLIST_FILE": "YES",
+        "INFOPLIST_FILE": "hullsGultchApp/Info.plist",
+        "INFOPLIST_KEY_LSApplicationCategoryType": "",
+        "INFOPLIST_KEY_NSCameraUsageDescription": "This app uses the camera for AR",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]": "YES",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]": "YES",
         "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]": "YES",
@@ -52,7 +72,7 @@
         "LD_RUNPATH_SEARCH_PATHS": "@executable_path/Frameworks",
         "LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]": "@executable_path/../Frameworks",
         "MARKETING_VERSION": "1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "com.lilypinsonpersonalteam.hullsGultchApp",
+        "PRODUCT_BUNDLE_IDENTIFIER": "com.treybledsoe.hullsGultchAPP",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "REGISTER_APP_GROUPS": "YES",
         "SDKROOT": "auto",
