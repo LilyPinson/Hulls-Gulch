@@ -25,7 +25,7 @@ struct ContentView: View {
                 ContentUnavailableView(
                     "Point Cloud Preview Unavailable",
                     systemImage: "exclamationmark.triangle",
-                    description: Text("The preview file could not be loaded.")
+                    description: Text("PointCloud.bin could not be loaded.")
                 )
                 .foregroundStyle(.white)
             }
@@ -59,7 +59,8 @@ struct ContentView: View {
 
 private enum PointCloudScene {
     static func make() -> SCNScene? {
-        guard let node = PointCloudBuilder.makeNodeFromCSV() else { return nil }
+        // 4 m wide on-screen preview (same size as before), with GCP markers.
+        guard let node = TerrainModel.makeNode(longestSide: 4) else { return nil }
         let scene = SCNScene()
         scene.background.contents = UIColor.black
         scene.rootNode.addChildNode(node)

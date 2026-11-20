@@ -1,0 +1,10 @@
+{
+  "_comment": "Set either 'scaleFactor' directly, or provide 'expectedLongestSideMeters' or 'expectedAreaSquareMeters' from the report. Leave the others null. If both 'scaleFactor' and a target size are set, 'scaleFactor' wins. You can also tune rendering knobs below.",
+  "expectedLongestSideMeters": null,
+  "expectedAreaSquareMeters": 63700.0,
+  "scaleFactor": 1000,
+  "pointSizeMeters": null,
+  "minPointRadiusPx": 1.6,
+  "maxPointRadiusPx": 6,
+  "verticalExaggeration": 1
+}

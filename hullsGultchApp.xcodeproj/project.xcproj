@@ -29,6 +29,10 @@
     { "path": "PointCloudBuilder.swift", "target-membership": [ "hullsGultchApp/compile-sources" ] },
     { "path": "ARPointCloudView.swift", "target-membership": [ "hullsGultchApp/compile-sources" ] },
     { "path": "ARSessionState.swift", "target-membership": [ "hullsGultchApp/compile-sources" ] },
+    { "path": "Report.pdf", "target-membership": [ "hullsGultchApp/resources" ] },
+    { "path": "PointCloudScale.swift", "target-membership": [ "hullsGultchApp/compile-sources" ] },
+    { "path": "PointCloudScale.json", "target-membership": [ "hullsGultchApp/resources" ] },
+    { "path": "ReportIngestor.swift", "target-membership": [ "hullsGultchApp/compile-sources" ] },
     {
       "kind": "group",
       "name": "Products",
@@ -59,6 +63,7 @@
         "INFOPLIST_FILE": "hullsGultchApp/Info.plist",
         "INFOPLIST_KEY_LSApplicationCategoryType": "",
         "INFOPLIST_KEY_NSCameraUsageDescription": "This app uses the camera for AR",
+        "INFOPLIST_KEY_NSLocationWhenInUseUsageDescription": "This app uses your location to gather it's positioning",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]": "YES",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]": "YES",
         "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]": "YES",

@@ -1,107 +1,85 @@
 import Foundation
 import SceneKit
 
-public enum PointCloudScaleMode {
-    case fitToExtent(Float) // largest dimension -> meters
-    case preserveMeters
+/// Contents of PointCloudMeta.json (written by prepare_pointcloud.py).
+struct PointCloudMeta: Decodable {
+    struct Origin: Decodable {
+        let lon: Double
+        let lat: Double
+        let ele: Double
+    }
+    let count: Int
+    let voxelMeters: Double
+    let origin: Origin
+    /// [east, up, north] size of the cloud in meters.
+    let extentMeters: [Float]
+
+    static func load(resource: String = "PointCloudMeta", ext: String = "json") -> PointCloudMeta? {
+        guard let url = Bundle.main.url(forResource: resource, withExtension: ext),
+              let data = try? Data(contentsOf: url) else {
+            print("[PointCloud] \(resource).\(ext) not found in bundle.")
+            return nil
+        }
+        do {
+            return try JSONDecoder().decode(PointCloudMeta.self, from: data)
+        } catch {
+            print("[PointCloud] Could not decode \(resource).\(ext): \(error)")
+            return nil
+        }
+    }
 }
 
-public enum PointCloudBuilder {
-    /// Loads a CSV file from the main bundle and returns an `SCNNode` containing a point cloud geometry.
-    /// The CSV is expected to have lines of the form: x,y,z,r,g,b (where colors are 0..1 floats).
-    /// - Parameters:
-    ///   - resource: The base name of the CSV resource in the main bundle.
-    ///   - ext: The file extension (default: "csv").
-    ///   - interpretAsGeodeticDegrees: If true, interprets x,y as longitude,latitude degrees and z as meters elevation.
-    ///   - scaleMode: Scaling mode for the point cloud.
-    /// - Returns: A node with point geometry centered at origin, or nil if loading fails.
-    public static func makeNodeFromCSV(
-        resource: String = "PointCloudPreview",
-        ext: String = "csv",
-        interpretAsGeodeticDegrees: Bool = true,
-        scaleMode: PointCloudScaleMode = .fitToExtent(4),
-        scaleMultiplier: Float = 1.0,
-        pointSize: CGFloat = 10,
-        minPointRadius: CGFloat = 4,
-        maxPointRadius: CGFloat = 18,
-        materialOpacity: CGFloat = 0.95
+enum PointCloudBuilder {
+    /// Bytes per point in PointCloud.bin: float32 x,y,z + uint8 r,g,b,a.
+    private static let stride = 16
+
+    /// Builds a point-cloud node from `PointCloud.bin`.
+    ///
+    /// Coordinates are already in scene meters (x = east, y = up, z = -north), so no
+    /// geodetic math happens here. The node is NOT scaled; scale the parent instead.
+    static func makeNode(
+        resource: String = "PointCloud",
+        ext: String = "bin",
+        pointSize: CGFloat = 0.6,          // in scene meters (cloud voxel is 0.45 m)
+        minPointRadius: CGFloat = 1.5,     // screen pixels – keeps a tiny model visible
+        maxPointRadius: CGFloat = 6
     ) -> SCNNode? {
         guard let url = Bundle.main.url(forResource: resource, withExtension: ext),
-              let text = try? String(contentsOf: url) else {
+              let data = try? Data(contentsOf: url, options: .mappedIfSafe) else {
+            print("[PointCloud] \(resource).\(ext) not found in bundle.")
+            return nil
+        }
+        let count = data.count / stride
+        guard count > 0, data.count % stride == 0 else {
+            print("[PointCloud] \(resource).\(ext) has an unexpected size (\(data.count) bytes).")
             return nil
         }
 
-        var rawPositions: [SIMD3<Float>] = []
-        var colors: [SIMD4<Float>] = []
-        var minimum = SIMD3<Float>(repeating: .greatestFiniteMagnitude)
-        var maximum = SIMD3<Float>(repeating: -.greatestFiniteMagnitude)
+        // Positions come straight out of the file (zero copy): offset 0, stride 16.
+        let positionSource = SCNGeometrySource(
+            data: data,
+            semantic: .vertex,
+            vectorCount: count,
+            usesFloatComponents: true,
+            componentsPerVector: 3,
+            bytesPerComponent: MemoryLayout<Float>.size,
+            dataOffset: 0,
+            dataStride: stride
+        )
 
-        text.enumerateLines { line, _ in
-            let values = line.split(separator: ",").compactMap { Float($0) }
-            guard values.count == 6 else { return }
-
-            let position = SIMD3(values[0], values[1], values[2])
-            rawPositions.append(position)
-            colors.append(SIMD4(values[3], values[4], values[5], 1))
-            minimum = simd_min(minimum, position)
-            maximum = simd_max(maximum, position)
-        }
-
-        guard !rawPositions.isEmpty else { return nil }
-
-        let center = (minimum + maximum) / 2
-
-        // Convert from input space to local meters.
-        let localPositions: [SIMD3<Float>]
-        if interpretAsGeodeticDegrees {
-            // Interpret x,y as longitude,latitude in degrees; z as distance/elevation in meters.
-            // Map to local meters with:
-            //  - X: east-west (meters) from longitude delta
-            //  - Y: elevation (meters) from z delta
-            //  - Z: north-south (meters) from latitude delta
-            let centerLatDegrees = center.y
-            let metersPerLatitudeDegree: Float = 111_320
-            let metersPerLongitudeDegree = metersPerLatitudeDegree * cos(centerLatDegrees * .pi / 180)
-
-            localPositions = rawPositions.map { p in
-                let dx = (p.x - center.x) * metersPerLongitudeDegree
-                let dy = (p.z - center.z) // z already in meters
-                let dz = (p.y - center.y) * metersPerLatitudeDegree
-                return SIMD3(dx, dy, dz)
+        // Colors: uint8 RGBA at byte offset 12 -> float RGBA.
+        var colors = [SIMD4<Float>](repeating: SIMD4<Float>(1, 1, 1, 1), count: count)
+        data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+            for i in 0..<count {
+                let o = i * stride + 12
+                colors[i] = SIMD4<Float>(Float(raw[o]) / 255, Float(raw[o + 1]) / 255, Float(raw[o + 2]) / 255, 1)
             }
-        } else {
-            // Generic: center the data in its native units
-            localPositions = rawPositions.map { $0 - center }
         }
-
-        // Compute extents in local units (meters if geodetic)
-        var minLocal = SIMD3<Float>(repeating: .greatestFiniteMagnitude)
-        var maxLocal = SIMD3<Float>(repeating: -.greatestFiniteMagnitude)
-        for p in localPositions {
-            minLocal = simd_min(minLocal, p)
-            maxLocal = simd_max(maxLocal, p)
-        }
-        let extents = maxLocal - minLocal
-
-        // Determine scale factor
-        let scale: Float
-        switch scaleMode {
-        case .fitToExtent(let targetMeters):
-            let largestDimension = max(extents.x, max(extents.y, extents.z))
-            scale = largestDimension > 0 ? (targetMeters / largestDimension) : 1
-        case .preserveMeters:
-            scale = 1
-        }
-
-        // Build geometry
-        let positions = localPositions.map { SCNVector3($0 * (scale * scaleMultiplier)) }
-        let positionSource = SCNGeometrySource(vertices: positions)
-
         let colorData = colors.withUnsafeBufferPointer { Data(buffer: $0) }
         let colorSource = SCNGeometrySource(
             data: colorData,
             semantic: .color,
-            vectorCount: colors.count,
+            vectorCount: count,
             usesFloatComponents: true,
             componentsPerVector: 4,
             bytesPerComponent: MemoryLayout<Float>.size,
@@ -109,20 +87,27 @@ public enum PointCloudBuilder {
             dataStride: MemoryLayout<SIMD4<Float>>.stride
         )
 
-        let indices = (0..<positions.count).map(Int32.init)
-        let points = SCNGeometryElement(indices: indices, primitiveType: .point)
-        points.pointSize = pointSize
-        points.minimumPointScreenSpaceRadius = minPointRadius
-        points.maximumPointScreenSpaceRadius = maxPointRadius
+        let indices = (0..<count).map { Int32($0) }
+        let indexData = indices.withUnsafeBufferPointer { Data(buffer: $0) }
+        let element = SCNGeometryElement(
+            data: indexData,
+            primitiveType: .point,
+            primitiveCount: count,
+            bytesPerIndex: MemoryLayout<Int32>.size
+        )
+        // Tunable via PointCloudScale.json (see PointCloudScaleConfig).
+        element.pointSize = pointSize
+        element.minimumPointScreenSpaceRadius = minPointRadius
+        element.maximumPointScreenSpaceRadius = maxPointRadius
 
-        let geometry = SCNGeometry(sources: [positionSource, colorSource], elements: [points])
+        let geometry = SCNGeometry(sources: [positionSource, colorSource], elements: [element])
         let material = SCNMaterial()
         material.lightingModel = .constant
         material.isDoubleSided = true
-        material.transparency = materialOpacity
         geometry.materials = [material]
 
         let node = SCNNode(geometry: geometry)
+        node.name = "PointCloud"
         return node
     }
 }
