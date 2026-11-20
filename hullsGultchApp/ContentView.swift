@@ -40,6 +40,10 @@ struct ContentView: View {
                         .padding(.top, 50)
                 }
                 Spacer()
+                if useAR {
+                    TrackingChip(state: arState)
+                        .padding(.bottom, 24)
+                }
             }
 
             HStack {
@@ -53,6 +57,41 @@ struct ContentView: View {
                 .toggleStyle(.switch)
                 .padding()
             }
+        }
+    }
+}
+
+/// Bottom-of-screen indicator: a colored dot, a one-line status, and (once placed) the
+/// distance from the sign and the distance walked since placement.
+private struct TrackingChip: View {
+    @ObservedObject var state: ARSessionState
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 12, height: 12)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.trackingText)
+                    .font(.subheadline.bold())
+                if state.placed, let distance = state.distanceFromSign {
+                    Text("Sign: \(Int(distance.rounded())) m  ·  Walked: \(Int(state.pathWalked.rounded())) m")
+                        .font(.caption)
+                }
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var dotColor: Color {
+        switch state.trackingLevel {
+        case .unknown: return .gray
+        case .good:    return .green
+        case .caution: return .yellow
+        case .poor:    return .red
         }
     }
 }
